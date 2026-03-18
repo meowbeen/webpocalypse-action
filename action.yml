@@ -1,0 +1,70 @@
+name: 'Webpocalypse'
+description: 'Automatically optimize images (WebP/AVIF) in pull requests and pushes using the webpocalypse CLI'
+author: 'Mubeen Khan'
+
+branding:
+  icon: 'image'
+  color: 'orange'
+
+inputs:
+  format:
+    description: 'Output format: webp | avif | both'
+    required: false
+    default: 'webp'
+
+  quality:
+    description: 'Compression quality (1–100)'
+    required: false
+    default: '80'
+
+  lossless:
+    description: 'Enable lossless compression'
+    required: false
+    default: 'false'
+
+  max-width:
+    description: 'Maximum output width in pixels (optional)'
+    required: false
+
+  max-height:
+    description: 'Maximum output height in pixels (optional)'
+    required: false
+
+  paths:
+    description: 'Comma-separated list of directories to scan when changed-only is false'
+    required: false
+    default: '.'
+
+  changed-only:
+    description: 'Only process image files changed in this PR or push (default: true)'
+    required: false
+    default: 'true'
+
+  commit-back:
+    description: 'Commit optimized images back to the branch'
+    required: false
+    default: 'false'
+
+  commit-message:
+    description: 'Commit message used when committing optimized images'
+    required: false
+    default: 'chore: optimize images [webpocalypse]'
+
+  token:
+    description: 'GitHub token used for committing back (defaults to GITHUB_TOKEN)'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  files-converted:
+    description: 'Number of image files successfully converted'
+
+  bytes-saved:
+    description: 'Total bytes saved across all converted files'
+
+  savings-percent:
+    description: 'Overall size reduction as a percentage'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
