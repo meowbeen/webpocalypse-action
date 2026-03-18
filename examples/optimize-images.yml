@@ -1,0 +1,48 @@
+name: Optimize Images
+
+on:
+  pull_request:
+    paths:
+      - '**.jpg'
+      - '**.jpeg'
+      - '**.png'
+  push:
+    branches: [main]
+    paths:
+      - '**.jpg'
+      - '**.jpeg'
+      - '**.png'
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required for commit-back
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history is needed for git diff to work correctly.
+          # For pushes, HEAD~1..HEAD is used.
+          # For PRs, base.sha..head.sha is used.
+          fetch-depth: 0
+
+      - name: Optimize images
+        id: optimize
+        uses: your-handle/webpocalypse-action@v1
+        with:
+          format: webp        # webp | avif | both
+          quality: 82         # 1–100
+          lossless: false
+          max-width: 1920     # optional: cap image width
+          changed-only: true  # only process files changed in this PR/push
+          commit-back: true   # commit optimized images back to the branch
+          commit-message: 'chore: optimize images [webpocalypse]'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Print summary
+        run: |
+          echo "Files converted : ${{ steps.optimize.outputs.files-converted }}"
+          echo "Bytes saved     : ${{ steps.optimize.outputs.bytes-saved }}"
+          echo "Savings         : ${{ steps.optimize.outputs.savings-percent }}%"
