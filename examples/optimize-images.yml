@@ -16,17 +16,22 @@ on:
 jobs:
   optimize:
     runs-on: ubuntu-latest
+    # contents: write is only required when commit-back: true.
+    # Remove or downgrade to `contents: read` if you are not committing back.
     permissions:
-      contents: write # required for commit-back
+      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # Full history is needed for git diff to work correctly.
-          # For pushes, HEAD~1..HEAD is used.
-          # For PRs, base.sha..head.sha is used.
-          fetch-depth: 0
+          # fetch-depth: 2 is enough for push events (HEAD~1..HEAD diff).
+          # For pull_request events the action uses base/head SHAs from the
+          # event payload, so depth is irrelevant — but 2 keeps things safe
+          # without cloning full history.
+          # If the clone is too shallow the action retries with --unshallow
+          # automatically; you do not need to change this value.
+          fetch-depth: 2
 
       - name: Optimize images
         id: optimize
@@ -37,9 +42,14 @@ jobs:
           lossless: false
           max-width: 1920     # optional: cap image width
           changed-only: true  # only process files changed in this PR/push
-          commit-back: true   # commit optimized images back to the branch
+          # commit-back: when true, a bot commit is pushed to this branch
+          # with the optimized images. Requires `permissions: contents: write`
+          # on the job. Leave false if you only want the action to report
+          # savings without modifying the branch.
+          commit-back: false
           commit-message: 'chore: optimize images [webpocalypse]'
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # token is only needed when commit-back is true
+          # token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Print summary
         run: |

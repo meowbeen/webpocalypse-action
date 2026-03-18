@@ -31,7 +31,14 @@ inputs:
     required: false
 
   paths:
-    description: 'Comma-separated list of directories to scan when changed-only is false'
+    description: >
+      Comma-separated list of directories.
+      Behaviour differs by mode — this input does double duty:
+        • changed-only: true  → acts as a scope filter; only changed files
+          whose path starts with one of these directories are processed.
+          Useful for monorepos where you only care about e.g. "public/".
+        • changed-only: false → acts as the list of directories to scan in full.
+      Default "." means "the whole repository" in both modes.
     required: false
     default: '.'
 
@@ -51,7 +58,11 @@ inputs:
     default: 'chore: optimize images [webpocalypse]'
 
   token:
-    description: 'GitHub token used for committing back (defaults to GITHUB_TOKEN)'
+    description: >
+      GitHub token used to push the commit when commit-back is true.
+      Not required — and never read — when commit-back is false.
+      Defaults to the built-in GITHUB_TOKEN. Only override if you need
+      a PAT (e.g. to trigger downstream workflows on the pushed commit).
     required: false
     default: ${{ github.token }}
 
