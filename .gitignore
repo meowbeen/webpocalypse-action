@@ -86,6 +86,7 @@ out
 dist/*
 !dist/index.js
 !dist/licenses.txt
+!dist/sourcemap-register.js
 
 # Gatsby files
 .cache/
