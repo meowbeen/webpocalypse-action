@@ -1,8 +1,31 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
+import * as path from 'path';
 import { parseInputs } from './inputs';
 import { getChangedImageFiles, getWorkingTreeChanges, commitAndPush } from './git';
 import { runConversion } from './converter';
+
+/**
+ * Given a list of file paths, returns the minimal set of unique parent
+ * directories — removing any sub-directory already covered by a parent.
+ * e.g. ['public/images/home/a.png', 'public/images/b.png']
+ *   → ['public/images']
+ */
+function toUniqueDirs(filePaths: string[]): string[] {
+  const dirs = filePaths.map((f) => {
+    const dir = path.dirname(f);
+    // path.dirname returns '.' for bare filenames — normalise to '.'
+    return dir === '' ? '.' : dir;
+  });
+
+  // Sort so that parent paths appear before their children ('a' < 'a/b')
+  const unique = [...new Set(dirs)].sort();
+
+  // Drop any directory that is already covered by a shorter ancestor in the list
+  return unique.filter(
+    (dir) => !unique.some((other) => other !== dir && dir.startsWith(other + path.sep))
+  );
+}
 
 async function run(): Promise<void> {
   try {
@@ -43,7 +66,13 @@ async function run(): Promise<void> {
         core.info(`  • ${f}`);
       }
 
-      targets = scopedFiles;
+      // The CLI requires a directory — resolve changed file paths to their
+      // unique parent directories (removing redundant sub-directories).
+      const uniqueDirs = toUniqueDirs(scopedFiles);
+      core.info(
+        `Resolved to ${uniqueDirs.length} unique director${uniqueDirs.length === 1 ? 'y' : 'ies'}: ${uniqueDirs.join(', ')}`
+      );
+      targets = uniqueDirs;
     } else {
       core.info(`Processing directories: ${inputs.paths.join(', ')}`);
       targets = inputs.paths;

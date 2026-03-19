@@ -52,7 +52,7 @@ jobs:
           fetch-depth: 2   # see "Checkout depth" section below
 
       - name: Optimize images
-        uses: your-handle/webpocalypse-action@v1
+        uses: meowbeen/webpocalypse-action@v1
         with:
           format: webp
           quality: 82
@@ -98,7 +98,7 @@ jobs:
 
 - name: Optimize images
   id: optimize
-  uses: your-handle/webpocalypse-action@v1
+  uses: meowbeen/webpocalypse-action@v1
 
 - name: Print savings
   run: |
@@ -117,7 +117,7 @@ jobs:
   with:
     fetch-depth: 2
 
-- uses: your-handle/webpocalypse-action@v1
+- uses: meowbeen/webpocalypse-action@v1
   with:
     format: webp
     quality: 80
@@ -133,7 +133,7 @@ jobs:
   with:
     fetch-depth: 2
 
-- uses: your-handle/webpocalypse-action@v1
+- uses: meowbeen/webpocalypse-action@v1
   with:
     format: webp
     quality: 80
@@ -147,7 +147,7 @@ jobs:
 
 ```yaml
 # paths is the scan target when changed-only is false
-- uses: your-handle/webpocalypse-action@v1
+- uses: meowbeen/webpocalypse-action@v1
   with:
     format: avif
     quality: 70
@@ -162,7 +162,7 @@ jobs:
 ### Convert to both WebP and AVIF with max-width
 
 ```yaml
-- uses: your-handle/webpocalypse-action@v1
+- uses: meowbeen/webpocalypse-action@v1
   with:
     format: both
     quality: 85
@@ -208,7 +208,7 @@ jobs:
       contents: write   # only needed when commit-back: true
 
     steps:
-      - uses: your-handle/webpocalypse-action@v1
+      - uses: meowbeen/webpocalypse-action@v1
         with:
           commit-back: true
           # token defaults to GITHUB_TOKEN — only override with a PAT if

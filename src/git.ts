@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as github from '@actions/github';
 
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif'];
 
 function isImageFile(filePath: string): boolean {
   const lower = filePath.toLowerCase();

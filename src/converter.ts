@@ -3,11 +3,11 @@ import * as exec from '@actions/exec';
 import { ActionInputs, CliJsonOutput } from './types';
 
 /**
- * Assembles the argument list for the webpocalypse CLI.
- * targets can be a mix of file paths (changed-only mode) or directories.
+ * Assembles the argument list for a single webpocalypse CLI invocation.
+ * The CLI accepts exactly one <input> directory as a positional argument.
  */
-export function buildCliArgs(inputs: ActionInputs, targets: string[]): string[] {
-  const args: string[] = [...targets, '--in-place', '--json'];
+export function buildCliArgs(inputs: ActionInputs, target: string): string[] {
+  const args: string[] = [target, '--in-place', '--json'];
 
   args.push('--format', inputs.format);
   args.push('--quality', String(inputs.quality));
@@ -26,15 +26,34 @@ export function buildCliArgs(inputs: ActionInputs, targets: string[]): string[] 
 }
 
 /**
- * Invokes `npx webpocalypse` with the resolved arguments and returns the
- * parsed JSON output. Falls back to an empty result if JSON is unavailable
- * (e.g. the installed CLI version predates the --json flag).
+ * Runs the webpocalypse CLI once per target (directory) and merges the results.
+ * Targets may be multiple when changed files span several directories.
  */
 export async function runConversion(
   inputs: ActionInputs,
   targets: string[]
 ): Promise<CliJsonOutput> {
-  const cliArgs = buildCliArgs(inputs, targets);
+  const accumulated: CliJsonOutput = {
+    files: [],
+    totalOriginalBytes: 0,
+    totalConvertedBytes: 0,
+  };
+
+  for (const target of targets) {
+    const result = await runSingleConversion(inputs, target);
+    accumulated.files.push(...result.files);
+    accumulated.totalOriginalBytes += result.totalOriginalBytes;
+    accumulated.totalConvertedBytes += result.totalConvertedBytes;
+  }
+
+  return accumulated;
+}
+
+async function runSingleConversion(
+  inputs: ActionInputs,
+  target: string
+): Promise<CliJsonOutput> {
+  const cliArgs = buildCliArgs(inputs, target);
 
   core.info(`Running: npx webpocalypse ${cliArgs.join(' ')}`);
 
@@ -54,7 +73,7 @@ export async function runConversion(
   });
 
   if (exitCode !== 0) {
-    core.warning(`webpocalypse exited with code ${exitCode}.`);
+    core.warning(`webpocalypse exited with code ${exitCode} for target: ${target}`);
     if (stderr.trim()) {
       core.warning(`stderr:\n${stderr.trim()}`);
     }
@@ -69,7 +88,6 @@ export async function runConversion(
  * for the outermost `{...}` that contains the expected keys.
  */
 function parseCliOutput(stdout: string): CliJsonOutput {
-  // Locate the first '{' and the matching closing '}'
   const start = stdout.indexOf('{');
   const end = stdout.lastIndexOf('}');
 

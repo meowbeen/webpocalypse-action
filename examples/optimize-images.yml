@@ -35,7 +35,7 @@ jobs:
 
       - name: Optimize images
         id: optimize
-        uses: your-handle/webpocalypse-action@v1
+        uses: meowbeen/webpocalypse-action@v1
         with:
           format: webp        # webp | avif | both
           quality: 82         # 1–100

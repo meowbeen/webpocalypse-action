@@ -29966,11 +29966,11 @@ exports.runConversion = runConversion;
 const core = __importStar(__nccwpck_require__(7484));
 const exec = __importStar(__nccwpck_require__(5236));
 /**
- * Assembles the argument list for the webpocalypse CLI.
- * targets can be a mix of file paths (changed-only mode) or directories.
+ * Assembles the argument list for a single webpocalypse CLI invocation.
+ * The CLI accepts exactly one <input> directory as a positional argument.
  */
-function buildCliArgs(inputs, targets) {
-    const args = [...targets, '--in-place', '--json'];
+function buildCliArgs(inputs, target) {
+    const args = [target, '--in-place', '--json'];
     args.push('--format', inputs.format);
     args.push('--quality', String(inputs.quality));
     if (inputs.lossless) {
@@ -29985,12 +29985,25 @@ function buildCliArgs(inputs, targets) {
     return args;
 }
 /**
- * Invokes `npx webpocalypse` with the resolved arguments and returns the
- * parsed JSON output. Falls back to an empty result if JSON is unavailable
- * (e.g. the installed CLI version predates the --json flag).
+ * Runs the webpocalypse CLI once per target (directory) and merges the results.
+ * Targets may be multiple when changed files span several directories.
  */
 async function runConversion(inputs, targets) {
-    const cliArgs = buildCliArgs(inputs, targets);
+    const accumulated = {
+        files: [],
+        totalOriginalBytes: 0,
+        totalConvertedBytes: 0,
+    };
+    for (const target of targets) {
+        const result = await runSingleConversion(inputs, target);
+        accumulated.files.push(...result.files);
+        accumulated.totalOriginalBytes += result.totalOriginalBytes;
+        accumulated.totalConvertedBytes += result.totalConvertedBytes;
+    }
+    return accumulated;
+}
+async function runSingleConversion(inputs, target) {
+    const cliArgs = buildCliArgs(inputs, target);
     core.info(`Running: npx webpocalypse ${cliArgs.join(' ')}`);
     let stdout = '';
     let stderr = '';
@@ -30006,7 +30019,7 @@ async function runConversion(inputs, targets) {
         ignoreReturnCode: true,
     });
     if (exitCode !== 0) {
-        core.warning(`webpocalypse exited with code ${exitCode}.`);
+        core.warning(`webpocalypse exited with code ${exitCode} for target: ${target}`);
         if (stderr.trim()) {
             core.warning(`stderr:\n${stderr.trim()}`);
         }
@@ -30019,7 +30032,6 @@ async function runConversion(inputs, targets) {
  * for the outermost `{...}` that contains the expected keys.
  */
 function parseCliOutput(stdout) {
-    // Locate the first '{' and the matching closing '}'
     const start = stdout.indexOf('{');
     const end = stdout.lastIndexOf('}');
     if (start !== -1 && end !== -1 && end > start) {
@@ -30093,7 +30105,7 @@ exports.commitAndPush = commitAndPush;
 const core = __importStar(__nccwpck_require__(7484));
 const exec = __importStar(__nccwpck_require__(5236));
 const github = __importStar(__nccwpck_require__(3228));
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif'];
 function isImageFile(filePath) {
     const lower = filePath.toLowerCase();
     return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
@@ -30263,9 +30275,27 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
+const path = __importStar(__nccwpck_require__(6928));
 const inputs_1 = __nccwpck_require__(8422);
 const git_1 = __nccwpck_require__(1243);
 const converter_1 = __nccwpck_require__(1443);
+/**
+ * Given a list of file paths, returns the minimal set of unique parent
+ * directories — removing any sub-directory already covered by a parent.
+ * e.g. ['public/images/home/a.png', 'public/images/b.png']
+ *   → ['public/images']
+ */
+function toUniqueDirs(filePaths) {
+    const dirs = filePaths.map((f) => {
+        const dir = path.dirname(f);
+        // path.dirname returns '.' for bare filenames — normalise to '.'
+        return dir === '' ? '.' : dir;
+    });
+    // Sort so that parent paths appear before their children ('a' < 'a/b')
+    const unique = [...new Set(dirs)].sort();
+    // Drop any directory that is already covered by a shorter ancestor in the list
+    return unique.filter((dir) => !unique.some((other) => other !== dir && dir.startsWith(other + path.sep)));
+}
 async function run() {
     try {
         core.info('━━━ Webpocalypse Action ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -30290,7 +30320,11 @@ async function run() {
             for (const f of scopedFiles) {
                 core.info(`  • ${f}`);
             }
-            targets = scopedFiles;
+            // The CLI requires a directory — resolve changed file paths to their
+            // unique parent directories (removing redundant sub-directories).
+            const uniqueDirs = toUniqueDirs(scopedFiles);
+            core.info(`Resolved to ${uniqueDirs.length} unique director${uniqueDirs.length === 1 ? 'y' : 'ies'}: ${uniqueDirs.join(', ')}`);
+            targets = uniqueDirs;
         }
         else {
             core.info(`Processing directories: ${inputs.paths.join(', ')}`);
