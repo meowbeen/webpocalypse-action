@@ -30350,19 +30350,12 @@ async function run() {
         // ── Step 4: Optionally commit back ───────────────────────────────────────
         if (inputs.commitBack) {
             core.startGroup('Committing optimized images');
-            // Use working-tree diff to find every file the CLI actually touched,
-            // including newly created .webp / .avif siblings (non-in-place mode).
-            let filesToCommit;
-            if (result.files.length > 0) {
-                filesToCommit = result.files.map((f) => f.path);
-            }
-            else {
-                // JSON was unavailable — fall back to git working-tree scan
-                filesToCommit = await (0, git_1.getWorkingTreeChanges)();
-                if (filesToCommit.length > 0) {
-                    core.info(`JSON output unavailable; detected ${filesToCommit.length} changed image(s) via git status.`);
-                }
-            }
+            // Always use git status to discover changed/added image files.
+            // The CLI reports paths relative to the scanned directory, not the repo
+            // root, so we cannot use result.files for staging. git status gives us
+            // correct repo-root-relative paths for every file the CLI touched,
+            // including newly created .avif / .webp outputs and deleted originals.
+            const filesToCommit = await (0, git_1.getWorkingTreeChanges)();
             if (filesToCommit.length === 0) {
                 core.info('No image changes detected in the working tree. Skipping commit.');
             }
